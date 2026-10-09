@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrailWatch demo</title>
+<style>
+  :root { --bg: #0f1411; --panel: #161d18; --line: #263028; --ink: #e6ede7; --muted: #8fa194;
+          --green: #4f9a63; --amber: #e0a43c; --red: #f0614f; --blue: #6fa3d6; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, "Segoe UI", sans-serif; overflow: hidden; }
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--line); height: 48px; }
+  header h1 { font-size: 17px; margin: 0; } header h1 span { color: var(--green); }
+  header .sub { color: var(--muted); }
+  #clock { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: 380px 1fr 1fr; gap: 10px; padding: 10px; height: calc(100% - 48px); }
+  .col { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 0; display: flex; flex-direction: column; }
+  .panel h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .grow { flex: 1; }
+  iframe { border: 0; border-radius: 10px; width: 100%; flex: 1; background: #f4f1ea; }
+  pre { margin: 0; font: 12.5px/1.45 ui-monospace, Consolas, monospace; white-space: pre-wrap; overflow: hidden; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+  .badge { font-weight: 700; font-size: 12px; padding: 3px 10px; border-radius: 99px; letter-spacing: .04em; }
+  .alive { background: var(--green); color: #fff; } .dead { background: var(--red); color: #fff; animation: pulse 1s infinite; } .idle { background: var(--line); color: var(--muted); }
+  @keyframes pulse { 50% { opacity: .55; } }
+  .kill { color: var(--red); font-weight: 700; } .ok { color: var(--green); } .warnl { color: var(--amber); }
+  ol { list-style: none; margin: 0; padding: 0; overflow: hidden; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; font: 12px/1.35 ui-monospace, Consolas, monospace; }
+  ol li { display: grid; grid-template-columns: 26px 1fr auto; gap: 6px; padding: 2px 0; color: var(--muted); }
+  ol li.hot { color: var(--ink); }
+  ol li.timer { color: var(--blue); } ol li.bad { color: var(--red); font-weight: 700; } ol li.sig { color: var(--amber); }
+  .msg { border-left: 3px solid var(--blue); padding: 6px 8px; margin-top: 6px; background: #1b231d; border-radius: 0 6px 6px 0; animation: drop .4s ease-out; }
+  .msg.contact { border-color: var(--red); }
+  .msg b { display: block; } .msg small { color: var(--muted); }
+  .msg div { white-space: pre-wrap; font-size: 12.5px; color: #cfd8d1; max-height: 5.6em; overflow: hidden; }
+  @keyframes drop { from { transform: translateY(-6px); opacity: 0; } }
+  #ntfy { overflow: hidden; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Trail<span>Watch</span></h1>
+  <span class="sub">Hard-killing the worker mid-hike · local Gemma + Temporal</span>
+  <span id="clock"></span>
+</header>
+<div class="grid">
+  <div class="col"><iframe id="phone" title="Hiker's phone view"></iframe></div>
+  <div class="col">
+    <div class="panel grow" style="flex:1.2">
+      <h2>Chaos console <span id="worker" class="badge idle">WAITING</span></h2>
+      <pre id="console"></pre>
+    </div>
+    <div class="panel grow">
+      <h2>Real pushes via ntfy.sh <span id="ntfyState" class="badge idle">CONNECTING</span></h2>
+      <div id="ntfy"></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="panel grow">
+      <h2>Temporal event history <span id="evCount" class="sub"></span></h2>
+      <ol id="events"></ol>
+    </div>
+  </div>
+</div>
+<script>
+const q = new URLSearchParams(location.search);
+const topics = (q.get("topics") || "").split(",").filter(Boolean);
+const hashKey = new URLSearchParams(location.hash.slice(1)).get("key");
+if (hashKey) { try { localStorage.setItem("tw-key", hashKey); } catch {} history.replaceState(null, "", location.pathname + location.search); }
+const key = hashKey || (() => { try { return localStorage.getItem("tw-key") || ""; } catch { return ""; } })();
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let trip = q.get("trip"), phoneTrip = null;
+
+setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString(); }, 250);
+function $(id) { return document.getElementById(id); }
+
+async function get(path, text) {
+  const r = await fetch(path, { headers: { "X-TrailWatch-Key": key } });
+  if (!r.ok) throw new Error(r.status);
+  return text ? r.text() : r.json();
+}
+
+async function pollConsole() {
+  try {
+    const t = await get("/api/demo/console", true);
+    const lines = t.trim().split("\n").filter(Boolean).slice(-22);
+    $("console").innerHTML = lines.map((l) => {
+      const c = /KILLED|OVERDUE/.test(l) ? "kill" : /ALERTED|closed|worker started/.test(l) ? "ok" : /dead|status while/.test(l) ? "warnl" : "";
+      return `<div class="${c}">${esc(l)}</div>`;
+    }).join("");
+    const m = t.match(/trip started: (\S+)/g);
+    if (m && !q.get("trip")) trip = m[m.length - 1].split(": ")[1];
+    let state = "idle", label = "WAITING";
+    for (const l of lines) {
+      if (/worker started/.test(l)) { state = "alive"; label = "WORKER ALIVE"; }
+      if (/KILLED/.test(l)) { state = "dead"; label = "WORKER DEAD"; }
+      if (/trip closed/.test(l)) { state = "idle"; label = "DONE"; }
+    }
+    $("worker").className = "badge " + state; $("worker").textContent = label;
+  } catch {}
+}
+
+async function pollHistory() {
+  if (!trip) return;
+  if (phoneTrip !== trip) { phoneTrip = trip; $("phone").src = `/?trip=${encodeURIComponent(trip)}`; }
+  try {
+    const ev = await get(`/api/trips/${encodeURIComponent(trip)}/history`);
+    $("evCount").textContent = `${trip} · ${ev.length} events`;
+    $("events").innerHTML = ev.slice(-34).map((e) => {
+      const c = /TIMED_OUT|FAILED/.test(e.type) ? "bad" : /TIMER/.test(e.type) ? "timer" : /SIGNALED|UPDATE/.test(e.type) ? "sig" : /ACTIVITY_TASK_SCHEDULED|EXECUTION/.test(e.type) ? "hot" : "";
+      const t = new Date(e.time).toLocaleTimeString();
+      return `<li class="${c}"><span>${e.id}</span><span>${esc(e.type)}${e.detail ? " · " + esc(e.detail) : ""}</span><span>${t}</span></li>`;
+    }).join("");
+  } catch {}
+}
+
+if (topics.length) {
+  // Subscribing straight to ntfy.sh: these are the same messages the phones get.
+  const es = new EventSource(`https://ntfy.sh/${topics.join(",")}/sse?since=${Math.floor(Date.now() / 1000) - 5}`);
+  es.onopen = () => { $("ntfyState").className = "badge alive"; $("ntfyState").textContent = "SUBSCRIBED"; };
+  es.onerror = () => { $("ntfyState").className = "badge idle"; $("ntfyState").textContent = "RECONNECTING"; };
+  es.onmessage = (m) => {
+    const d = JSON.parse(m.data);
+    if (d.event !== "message") return;
+    const who = d.topic === topics[0] ? "hiker's phone" : "contact's phone";
+    const div = document.createElement("div");
+    div.className = "msg " + (d.topic === topics[0] ? "hiker" : "contact");
+    div.innerHTML = `<small>${new Date(d.time * 1000).toLocaleTimeString()} → ${who} · priority ${d.priority || 3}${d.actions ? " · " + d.actions.map((a) => esc(a.label)).join(" / ") : ""}</small><b>${esc(d.title)}</b><div>${esc(d.message)}</div>`;
+    $("ntfy").appendChild(div);
+    while ($("ntfy").children.length > 5) $("ntfy").firstChild.remove();
+  };
+} else {
+  $("ntfyState").textContent = "NO TOPICS";
+}
+
+setInterval(pollConsole, 400);
+setInterval(pollHistory, 800);
+pollConsole(); pollHistory();
+</script>
+</body>
+</html>

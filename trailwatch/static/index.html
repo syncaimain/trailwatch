@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrailWatch</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --card: #fffdf8; --ink: #1f2a22; --muted: #5d6b60; --line: #ddd6c8;
+    --green: #2f6b3f; --green-ink: #fff; --amber: #b7791f; --red: #b42318; --blue: #2b5c8a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121714; --card: #1a211c; --ink: #e8efe9; --muted: #9aab9e; --line: #2c372f;
+            --green: #4f9a63; --amber: #e0a43c; --red: #f0614f; --blue: #6fa3d6; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 8px 0 16px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  h1 span { color: var(--green); }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  label { display: block; font-size: 14px; color: var(--muted); margin: 10px 0 4px; }
+  input, textarea, select { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  textarea { min-height: 84px; resize: vertical; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  button { font: inherit; font-weight: 600; border: 0; border-radius: 12px; padding: 14px 16px; cursor: pointer; background: var(--line); color: var(--ink); }
+  button.primary { background: var(--green); color: var(--green-ink); width: 100%; margin-top: 16px; font-size: 17px; }
+  button:disabled { opacity: .5; cursor: progress; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .actions .ok { background: var(--green); color: #fff; grid-column: 1 / -1; font-size: 20px; padding: 18px; }
+  .actions .sos { background: var(--red); color: #fff; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .state { display: inline-block; font-weight: 700; font-size: 13px; padding: 4px 10px; border-radius: 99px; background: var(--line); }
+  .state.out { background: var(--green); color: #fff; }
+  .state.missed_checkin, .state.overdue { background: var(--amber); color: #111; }
+  .state.escalated { background: var(--red); color: #fff; }
+  .big { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+  .stats div small { display: block; color: var(--muted); font-size: 13px; }
+  ul { padding-left: 18px; margin: 6px 0; }
+  .log { list-style: none; padding: 0; margin: 0; }
+  .log li { padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; display: grid; grid-template-columns: 52px 1fr; gap: 8px; }
+  .log li:first-child { border-top: 0; }
+  .log time { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .notice { border-left: 4px solid var(--blue); padding: 8px 10px; margin: 8px 0; background: var(--bg); border-radius: 0 8px 8px 0; font-size: 14px; white-space: pre-wrap; }
+  .notice.contact { border-color: var(--red); }
+  .notice b { display: block; }
+  .notice small { color: var(--muted); }
+  .warn { color: var(--amber); }
+  a { color: var(--blue); }
+  .hidden { display: none; }
+  .trips a { display: block; padding: 6px 0; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Trail<span>Watch</span></h1>
+    <a id="newTrip" class="muted hidden" href="/">New trip</a>
+  </header>
+
+  <!-- Start a trip -->
+  <section id="startView">
+    <div class="card">
+      <h2>Before you go</h2>
+      <label for="desc">Where are you going, and when will you be back?</label>
+      <textarea id="desc" placeholder="Monk's Trail up Doi Suthep, solo, back by 5ish"></textarea>
+      <div class="row">
+        <div><label for="hiker">Your name</label><input id="hiker" autocomplete="given-name"></div>
+        <div><label for="contact">Emergency contact</label><input id="contact" placeholder="Sam"></div>
+      </div>
+      <details style="margin-top:12px">
+        <summary>Phone alerts (ntfy) and demo speed</summary>
+        <div class="row">
+          <div><label for="htopic">Your ntfy topic</label><input id="htopic" placeholder="tw-ali-x7k2"></div>
+          <div><label for="ctopic">Contact's ntfy topic</label><input id="ctopic" placeholder="tw-sam-x7k2"></div>
+        </div>
+        <p class="muted">Install the free ntfy app and subscribe to these topics. Pick hard-to-guess names: anyone who knows a topic on a public server can read it.</p>
+        <label for="speed">Clock speed</label>
+        <select id="speed">
+          <option value="60">Real time</option>
+          <option value="2">Demo: 1 trip-minute = 2 seconds</option>
+          <option value="1">Fast demo: 1 trip-minute = 1 second</option>
+        </select>
+      </details>
+      <button id="go" class="primary">Start trip</button>
+      <p id="startErr" class="warn"></p>
+      <p class="muted" id="geo">Location: asking…</p>
+    </div>
+    <div class="card trips"><h2>Recent trips</h2><div id="trips" class="muted">Loading…</div></div>
+  </section>
+
+  <!-- Active trip -->
+  <section id="tripView" class="hidden">
+    <div id="offline" class="card hidden" style="border-color:var(--amber)">
+      <b>TrailWatch's worker is offline.</b>
+      <div class="muted">Your check-in timers live on the Temporal server and are still running. Anything you tap now is queued and handled the moment it's back.</div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span id="state" class="state">…</span>
+        <a id="tlink" class="muted" target="_blank" rel="noopener">Temporal history ↗</a>
+      </div>
+      <div class="stats">
+        <div><small id="nextLabel">Next check-in</small><div class="big" id="next">--:--</div><small id="nextIn"></small></div>
+        <div><small>Back by</small><div class="big" id="ret">--:--</div><small id="turn"></small></div>
+      </div>
+      <div class="actions" id="actions">
+        <button class="ok" data-kind="ok">I'm OK</button>
+        <button data-kind="late">+30 min</button>
+        <button class="sos" data-kind="sos">SOS</button>
+        <button data-kind="finished">I'm home</button>
+        <button data-kind="cancel">Cancel trip</button>
+      </div>
+      <p id="actMsg" class="muted"></p>
+    </div>
+
+    <div class="card" id="planCard">
+      <h2>Plan</h2>
+      <div id="plan" class="muted">Gemma is planning…</div>
+    </div>
+
+    <div class="card">
+      <h2>Messages sent</h2>
+      <div id="notices" class="muted">None yet.</div>
+    </div>
+
+    <div class="card">
+      <h2>Trip log</h2>
+      <ul class="log" id="log"></ul>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const hashKey = new URLSearchParams(location.hash.slice(1)).get("key");
+if (hashKey) { try { localStorage.setItem("tw-key", hashKey); } catch {} history.replaceState(null, "", location.pathname + location.search); }
+const accessKey = hashKey || (() => { try { return localStorage.getItem("tw-key") || ""; } catch { return ""; } })();
+let pos = null, tripId = new URLSearchParams(location.search).get("trip"), last = null;
+
+const saved = (() => { try { return JSON.parse(localStorage.getItem("tw") || "{}"); } catch { return {}; } })();
+for (const k of ["hiker", "contact", "htopic", "ctopic", "speed"]) if (saved[k]) $(k).value = saved[k];
+
+function locate(cb) {
+  if (!navigator.geolocation) { $("geo").textContent = "Location: not available in this browser."; return cb && cb(); }
+  navigator.geolocation.getCurrentPosition(
+    (p) => { pos = { lat: p.coords.latitude, lon: p.coords.longitude };
+             $("geo").textContent = `Location: ${pos.lat.toFixed(3)}, ${pos.lon.toFixed(3)} (used for sunset + weather)`; cb && cb(); },
+    () => { $("geo").textContent = "Location: not shared. Planning without weather."; cb && cb(); },
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+}
+
+async function api(path, body) {
+  const headers = { "X-TrailWatch-Key": accessKey, ...(body ? { "Content-Type": "application/json" } : {}) };
+  const r = await fetch(path, body ? { method: "POST", headers, body: JSON.stringify(body) } : { headers });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail ? (typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail)) : r.statusText);
+  return j;
+}
+
+$("go").onclick = async () => {
+  const v = { hiker: $("hiker").value.trim(), contact: $("contact").value.trim(), htopic: $("htopic").value.trim(), ctopic: $("ctopic").value.trim(), speed: $("speed").value };
+  try { localStorage.setItem("tw", JSON.stringify(v)); } catch {}
+  $("go").disabled = true; $("startErr").textContent = "";
+  try {
+    const r = await api("/api/trips", {
+      description: $("desc").value.trim(), hiker_name: v.hiker, contact_name: v.contact,
+      hiker_topic: v.htopic, contact_topic: v.ctopic, tz_offset_min: -new Date().getTimezoneOffset(),
+      minute_seconds: Number(v.speed), ...(pos || {}),
+    });
+    tripId = r.trip_id; history.pushState(null, "", `?trip=${tripId}`); showTrip();
+  } catch (e) { $("startErr").textContent = e.message; }
+  $("go").disabled = false;
+};
+
+document.querySelectorAll("#actions button").forEach((b) => b.onclick = () => {
+  const kind = b.dataset.kind;
+  if (kind === "sos" && !confirm("Send SOS to your emergency contact now?")) return;
+  if (kind === "cancel" && !confirm("Cancel this trip? Nobody will be watching.")) return;
+  b.disabled = true; $("actMsg").textContent = "Sending…";
+  const send = async () => {
+    try {
+      const r = await api(`/api/trips/${tripId}/checkin`, { kind, minutes: kind === "late" ? 30 : 0, ...(pos || {}) });
+      $("actMsg").textContent = r.return_local ? `New return time: ${r.return_local}` : "Sent. Put your phone away.";
+    } catch (e) { $("actMsg").textContent = "Failed: " + e.message; }
+    b.disabled = false; refresh();
+  };
+  kind === "location" || kind === "cancel" ? send() : locate(send);
+});
+
+function hhmmss(ms) {
+  if (ms <= 0) return "now";
+  const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h ? `in ${h}h ${m}m` : m ? `in ${m}m ${s % 60}s` : `in ${s}s`;
+}
+
+function render(s) {
+  if (s.worker_offline) {
+    if (s.workflow_status !== "RUNNING") $("offline").innerHTML = `<b>This trip has ended (${esc(s.workflow_status.toLowerCase())}).</b><div class="muted">Start the worker to see its details.</div>`;
+    $("offline").classList.remove("hidden");
+    return;
+  }
+  $("offline").classList.add("hidden");
+  if ($("actMsg").dataset.err) { $("actMsg").textContent = ""; delete $("actMsg").dataset.err; }
+  last = s;
+  const st = s.state, done = ["finished", "cancelled"].includes(st);
+  $("state").className = "state " + st;
+  $("state").textContent = { planning: "Planning", out: "Out · watching", missed_checkin: "Missed check-in", overdue: "Overdue", escalated: "Contact alerted", finished: "Home safe", cancelled: "Cancelled" }[st] || st;
+  $("tlink").href = s.temporal_url;
+  $("next").textContent = s.next_checkin_local || "--:--";
+  $("ret").textContent = s.return_local || "--:--";
+  $("turn").textContent = s.turnaround_local ? `Turn around by ${s.turnaround_local}` : "";
+  $("nextLabel").textContent = st === "escalated" ? "Next re-alert" : "Next check-in";
+  $("actions").style.display = done ? "none" : "";
+
+  const p = s.plan;
+  if (p) {
+    $("plan").innerHTML = `
+      <div><b>${esc(p.route)}</b> · ${esc(p.activity)}${p.solo ? " · solo" : ""} · risk <b>${esc(p.risk)}</b></div>
+      <div class="muted">Check in every ${p.checkin_every_min} min · ${p.grace_min} min grace before alerting ${esc(s.contact)} · planned by ${esc(p.source)}</div>
+      ${p.warnings.length ? `<ul class="warn">${p.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
+      ${p.tips.length ? `<ul>${p.tips.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}
+      ${s.conditions?.available ? `<div class="muted">${esc(s.conditions.summary)}</div>` : ""}
+      ${s.minute_seconds < 60 ? `<div class="warn">Demo clock: 1 trip-minute = ${s.minute_seconds}s</div>` : ""}`;
+  }
+  $("notices").innerHTML = s.notices.length ? s.notices.slice().reverse().map((n) =>
+    `<div class="notice ${n.audience}"><small>${esc(n.local)} → ${n.audience === "hiker" ? esc(s.hiker) : esc(s.contact)} · ${esc(n.result)}</small><b>${esc(n.title)}</b>${esc(n.message)}</div>`).join("") : "None yet.";
+  $("log").innerHTML = s.log.slice().reverse().map((e) => `<li><time>${esc(e.local)}</time><span>${esc(e.text)}</span></li>`).join("");
+}
+
+function tick() {
+  if (!last || !last.next_checkin_at) return;
+  const done = ["finished", "cancelled"].includes(last.state);
+  $("nextIn").textContent = done ? "" : hhmmss(new Date(last.next_checkin_at) - Date.now());
+}
+
+async function refresh() {
+  if (!tripId) return;
+  try { render(await api(`/api/trips/${tripId}`)); } catch (e) { $("actMsg").textContent = e.message; $("actMsg").dataset.err = "1"; }
+}
+
+function showTrip() {
+  $("startView").classList.add("hidden"); $("tripView").classList.remove("hidden"); $("newTrip").classList.remove("hidden");
+  refresh();
+}
+
+async function loadTrips() {
+  try {
+    const t = await api("/api/trips");
+    $("trips").innerHTML = t.length ? t.map((x) => `<a href="?trip=${encodeURIComponent(x.trip_id)}">${esc(x.trip_id)} <span class="muted">· ${esc(x.status.toLowerCase())}</span></a>`).join("") : "No trips yet.";
+  } catch (e) { $("trips").textContent = "Can't reach Temporal: " + e.message; }
+}
+
+if (tripId) showTrip(); else { locate(); loadTrips(); }
+setInterval(refresh, 2000);
+setInterval(tick, 500);
+</script>
+</body>
+</html>
