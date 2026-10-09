@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1000px; height: 420px; overflow: hidden; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif; color: #eef3ee;
+    background:
+      radial-gradient(900px 500px at 15% 120%, #2f6b3f 0%, transparent 60%),
+      radial-gradient(500px 300px at 95% -10%, #1f3d2a 0%, transparent 70%),
+      #0f1411;
+    position: relative;
+  }
+  /* contour lines, like a topo map */
+  svg.topo { position: absolute; inset: 0; opacity: .13; }
+  .text { position: absolute; left: 56px; top: 84px; width: 430px; }
+  .brand { font-size: 22px; font-weight: 700; letter-spacing: .02em; color: #9fd3ac; display: flex; align-items: center; gap: 10px; }
+  .brand .dot { width: 12px; height: 12px; border-radius: 50%; background: #4f9a63; box-shadow: 0 0 0 5px rgba(79,154,99,.25); }
+  h1 { font-size: 38px; line-height: 1.12; font-weight: 700; letter-spacing: -.02em; margin-top: 18px; }
+  h1 em { font-style: normal; color: #f0614f; }
+  h1 span { color: #9fd3ac; }
+  .chips { display: flex; gap: 8px; margin-top: 26px; flex-wrap: wrap; }
+  .chip { font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 99px; border: 1px solid #2c3a30; background: #18211b; color: #cfdcd1; }
+  .shot {
+    position: absolute; right: -60px; top: 46px; width: 560px; border-radius: 12px; overflow: hidden;
+    transform: perspective(1400px) rotateY(-14deg) rotateX(4deg); transform-origin: left center;
+    box-shadow: 0 30px 60px rgba(0,0,0,.55), 0 0 0 1px #2c3a30;
+  }
+  .shot img { display: block; width: 100%; }
+  .badge {
+    position: absolute; right: 70px; bottom: 34px; background: #f0614f; color: #fff; font-weight: 800;
+    font-size: 15px; letter-spacing: .06em; padding: 8px 14px; border-radius: 8px; box-shadow: 0 10px 24px rgba(0,0,0,.4);
+  }
+</style>
+</head>
+<body>
+<svg class="topo" viewBox="0 0 1000 420" fill="none" stroke="#9fd3ac" stroke-width="1.2">
+  <path d="M-20 380 C 120 300, 260 360, 420 290 S 700 250, 1020 300"/>
+  <path d="M-20 340 C 140 260, 280 320, 440 250 S 720 210, 1020 260"/>
+  <path d="M-20 300 C 160 220, 300 280, 460 210 S 740 170, 1020 220"/>
+  <path d="M-20 260 C 180 180, 320 240, 480 170 S 760 130, 1020 180"/>
+  <path d="M-20 220 C 200 140, 340 200, 500 130 S 780 90, 1020 140"/>
+  <path d="M-20 180 C 220 100, 360 160, 520 90 S 800 50, 1020 100"/>
+</svg>
+<div class="text">
+  <div class="brand"><span class="dot"></span>TrailWatch</div>
+  <h1>I <em>hard-killed</em> it mid&#8209;hike.<br><span>The alert still went out.</span></h1>
+  <div class="chips">
+    <span class="chip">Local Gemma</span>
+    <span class="chip">Temporal durable timers</span>
+    <span class="chip">ntfy</span>
+  </div>
+</div>
+<div class="shot"><img src="still_contact_alerted.png" alt=""></div>
+<div class="badge">WORKER KILLED · 0 ALERTS LOST</div>
+</body>
+</html>
